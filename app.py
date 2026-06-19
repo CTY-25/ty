@@ -59,14 +59,101 @@ st.markdown('''
 
 
 # ============================================================
+# 数据生成（自动生成测试数据，无需外部文件）
+# ============================================================
+def _generate_sample_data():
+    """内置数据生成：上海共享单车30站点/10万条记录"""
+    from datetime import datetime, timedelta
+
+    stations = [
+        ('人民广场站',31.2304,121.4737),('南京东路站',31.2381,121.4843),
+        ('陆家嘴站',31.2357,121.5002),('徐家汇站',31.1947,121.4345),
+        ('静安寺站',31.2256,121.4446),('中山公园站',31.2196,121.4123),
+        ('五角场站',31.3020,121.5142),('世纪大道站',31.2317,121.5202),
+        ('上海火车站',31.2502,121.4583),('虹桥火车站',31.1882,121.3265),
+        ('新天地站',31.2192,121.4734),('豫园站',31.2275,121.4903),
+        ('打浦桥站',31.2073,121.4675),('漕河泾站',31.1706,121.3962),
+        ('张江高科站',31.2061,121.5910),('金桥站',31.2597,121.5914),
+        ('龙阳路站',31.2037,121.5561),('上海南站',31.1544,121.4305),
+        ('七宝站',31.1556,121.3510),('莘庄站',31.1093,121.3802),
+        ('浦东大道站',31.2394,121.5263),('外高桥站',31.3491,121.5888),
+        ('四川北路站',31.2523,121.4836),('大华站',31.2680,121.4121),
+        ('长寿路站',31.2405,121.4353),('江苏路站',31.2207,121.4326),
+        ('金沙江路站',31.2321,121.4138),('龙华站',31.1737,121.4527),
+        ('上海体育馆站',31.1829,121.4390),('虹口足球场站',31.2713,121.4754),
+    ]
+    names=[s[0] for s in stations]
+    lats=[s[1] for s in stations]
+    lngs=[s[2] for s in stations]
+    ns=len(stations)
+
+    np.random.seed(42)
+    n=100000
+    start_dates,end_dates=[],[]
+    for i in range(n):
+        d=datetime(2024,1,1)+timedelta(days=np.random.randint(0,365))
+        w=d.weekday()>=5
+        pw=np.array([0.005,0.003,0.002,0.002,0.003,0.008,0.02,0.04,0.06,0.08,0.09,0.10,0.11,0.12,0.11,0.09,0.07,0.05,0.04,0.03,0.02,0.01,0.008,0.006])
+        pn=np.array([0.003,0.002,0.002,0.003,0.005,0.02,0.07,0.12,0.08,0.04,0.03,0.04,0.05,0.04,0.03,0.04,0.08,0.12,0.07,0.04,0.03,0.02,0.01,0.005])
+        h=np.random.choice(range(24),p=(pw if w else pn)/(pw if w else pn).sum())
+        start_dt=d.replace(hour=h,minute=np.random.randint(0,60))
+        ut='member' if np.random.random()<0.62 else 'casual'
+        dur=float(np.clip(np.random.lognormal(2.3,0.7) if ut=='member' else np.random.lognormal(2.9,0.9),1,720))
+        start_dates.append(start_dt)
+        end_dates.append(start_dt+timedelta(minutes=dur))
+
+    si=np.random.randint(0,ns,n)
+    ei=np.random.randint(0,ns,n)
+    ei[si==ei]=(ei[si==ei]+np.random.randint(1,ns,(si==ei).sum()))%ns
+
+    df=pd.DataFrame({
+        'ride_id':[f'RIDE_{i:07d}' for i in range(n)],
+        'rideable_type':np.random.choice(['electric_bike','classic_bike'],n,p=[0.55,0.45]),
+        'started_at':start_dates,'ended_at':end_dates,
+        'start_station_name':[names[i] for i in si],
+        'start_station_id':[f'S{i:03d}' for i in si],
+        'end_station_name':[names[i] for i in ei],
+        'end_station_id':[f'S{i:03d}' for i in ei],
+        'start_lat':[lats[i]+np.random.normal(0,0.0001) for i in si],
+        'start_lng':[lngs[i]+np.random.normal(0,0.0001) for i in si],
+        'end_lat':[lats[i]+np.random.normal(0,0.0001) for i in ei],
+        'end_lng':[lngs[i]+np.random.normal(0,0.0001) for i in ei],
+        'member_casual':np.where(np.random.random(n)<0.62,'member','casual'),
+    })
+    df['started_at']=pd.to_datetime(df['started_at'])
+    df['ended_at']=pd.to_datetime(df['ended_at'])
+    df['trip_duration_min']=(df['ended_at']-df['started_at']).dt.total_seconds()/60
+    df['start_hour']=df['started_at'].dt.hour
+    df['start_dayofweek']=df['started_at'].dt.dayofweek
+    df['start_month']=df['started_at'].dt.month
+    dn={0:'周一',1:'周二',2:'周三',3:'周四',4:'周五',5:'周六',6:'周日'}
+    df['start_dayname']=df['start_dayofweek'].map(dn)
+    df['is_workday']=df['start_dayofweek'].isin([0,1,2,3,4]).astype(int)
+    df['season']=df['start_month'].apply(lambda m:'春季' if m in[3,4,5] else '夏季' if m in[6,7,8] else '秋季' if m in[9,10,11] else '冬季')
+    def hv(lat1,lon1,lat2,lon2):
+        R=6371;lat1,lon1,lat2,lon2=map(np.radians,[lat1,lon1,lat2,lon2])
+        return R*2*np.arcsin(np.sqrt(np.sin((lat2-lat1)/2)**2+np.cos(lat1)*np.cos(lat2)*np.sin((lon2-lon1)/2)**2))
+    df['trip_distance_km']=df.apply(lambda r:hv(r['start_lat'],r['start_lng'],r['end_lat'],r['end_lng']),axis=1)
+    df['is_member']=(df['member_casual']=='member').astype(int)
+    df['user_type']=df['member_casual'].map({'member':'会员','casual':'临时用户'})
+    df['time_period']=df['start_hour'].apply(lambda h:'早高峰' if 6<=h<10 else '白天平峰' if 10<=h<16 else '晚高峰' if 16<=h<20 else '夜间')
+    return df
+
+
+# ============================================================
 # 数据加载与缓存
 # ============================================================
 @st.cache_data(ttl=3600)
 def load_data():
-    """加载预处理的共享单车数据"""
-    df = pd.read_csv('./data/processed_citibike_2024.csv')
-    df['started_at'] = pd.to_datetime(df['started_at'])
-    df['ended_at'] = pd.to_datetime(df['ended_at'])
+    """加载数据：优先读取文件，不存在则自动生成"""
+    import os
+    data_path = './data/processed_citibike_2024.csv'
+    if os.path.exists(data_path):
+        df = pd.read_csv(data_path)
+        df['started_at'] = pd.to_datetime(df['started_at'])
+        df['ended_at'] = pd.to_datetime(df['ended_at'])
+    else:
+        df = _generate_sample_data()
     return df
 
 

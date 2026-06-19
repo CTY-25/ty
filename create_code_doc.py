@@ -73,7 +73,8 @@ def load_file(filename):
 doc.add_heading('附件1：程序代码', level=0)
 add_comment('本文件包含共享单车使用模式与城市出行特征分析的全部Python源代码，包括数据预处理、分析、建模及Streamlit应用。')
 add_comment('开发环境：Python 3.10+')
-add_comment('依赖：streamlit, pandas, numpy, matplotlib, seaborn, plotly, scikit-learn, geopandas')
+add_comment('依赖：streamlit, pandas, numpy, matplotlib, seaborn, plotly, scikit-learn, folium, streamlit-folium')
+add_comment('地图服务：高德地图瓦片（免费，国内高速访问），使用GCJ-02火星坐标系')
 add_comment('')
 
 # ============================================================
@@ -95,17 +96,31 @@ doc.add_heading('3. 分析与可视化模块（analysis_visualization.py）', le
 add_code_block(load_file('analysis_visualization.py'), '数据分析与静态可视化模块')
 
 # ============================================================
-# 4. app.py
+# 4. baidu_utils.py
 # ============================================================
-doc.add_heading('4. Streamlit应用主文件（app.py）', level=1)
-add_comment('以下是完整的Streamlit Web应用代码，整合了所有功能模块。')
-add_code_block(load_file('app.py'), 'Streamlit主应用完整代码')
+doc.add_heading('4. 坐标转换模块（baidu_utils.py）', level=1)
+add_comment('WGS-84 → GCJ-02 → BD-09 坐标转换工具，用于确保站点标记在地图上的精确定位。')
+add_code_block(load_file('baidu_utils.py'), '坐标转换工具模块')
 
 # ============================================================
-# 5. utils.py
+# 5. Streamlit应用主文件（app.py）
 # ============================================================
-doc.add_heading('5. 工具函数模块（utils.py）', level=1)
+doc.add_heading('5. Streamlit应用主文件（app.py）', level=1)
+add_comment('以下是完整的Streamlit Web应用代码，整合了所有功能模块（使用Folium+高德地图）。')
+add_code_block(load_file('app.py'), 'Streamlit主应用完整代码（含Folium高德地图集成）')
+
+# ============================================================
+# 6. 工具函数模块（utils.py）
+# ============================================================
+doc.add_heading('6. 工具函数模块（utils.py）', level=1)
 add_code_block(load_file('utils.py'), '工具函数模块')
+
+# ============================================================
+# 7. 测试数据生成（generate_sample_data.py）
+# ============================================================
+doc.add_heading('7. 测试数据生成模块（generate_sample_data.py）', level=1)
+add_comment('生成上海市核心城区30个站点的模拟共享单车数据，用于开发和测试。')
+add_code_block(load_file('generate_sample_data.py'), '测试数据生成模块')
 
 # 保存
 output_path = os.path.join(BASE_DIR, '附件1-程序代码.docx')
